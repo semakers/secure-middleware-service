@@ -1,0 +1,86 @@
+name: secure-middleware-service
+
+x-hardening: &hardening
+  read_only: true
+  tmpfs:
+    - /tmp
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  init: true
+
+x-healthcheck: &healthcheck
+  test:
+    - CMD
+    - node
+    - -e
+    - "fetch('http://127.0.0.1:'+(process.env.PORT||8080)+'/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
+  interval: 5s
+  timeout: 3s
+  retries: 10
+  start_period: 3s
+
+services:
+  # Production-mode service: `docker compose up` starts only this one.
+  api:
+    build:
+      context: .
+      target: runtime
+    image: secure-middleware:latest
+    environment:
+      NODE_ENV: production
+      AUDIT_ENCRYPTION_KEY: ${AUDIT_ENCRYPTION_KEY:?set AUDIT_ENCRYPTION_KEY in .env (see .env.example)}
+      AUDIT_KEY_ID: ${AUDIT_KEY_ID:-k1}
+    ports:
+      - "127.0.0.1:${API_PORT:-4380}:8080"
+    volumes:
+      - audit-data:/app/data
+    healthcheck: *healthcheck
+    restart: unless-stopped
+    <<: *hardening
+
+  # Demo/test instance: demo control enabled (impossible in production mode), fast cooldown.
+  api-demo:
+    profiles: [demo, test]
+    image: secure-middleware:latest
+    environment:
+      NODE_ENV: development
+      AUDIT_ENCRYPTION_KEY: ${AUDIT_ENCRYPTION_KEY:?set AUDIT_ENCRYPTION_KEY in .env (see .env.example)}
+      AUDIT_KEY_ID: ${AUDIT_KEY_ID:-k1}
+      DEMO_CONTROL_ENABLED: "true"
+      DEMO_CONTROL_TOKEN: ${DEMO_CONTROL_TOKEN:?set DEMO_CONTROL_TOKEN in .env (see .env.example)}
+      CIRCUIT_COOLDOWN_MS: ${DEMO_COOLDOWN_MS:-10000}
+      AI_MOCK_LATENCY_MS: ${AI_MOCK_LATENCY_MS:-2000}
+      AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-5000}
+    ports:
+      - "127.0.0.1:${DEMO_PORT:-4381}:8080"
+    volumes:
+      - audit-demo-data:/app/data
+    healthcheck: *healthcheck
+    <<: *hardening
+
+  # End-to-end suite: the same integration tests, run against the two containers above.
+  tests:
+    profiles: [test]
+    build:
+      context: .
+      target: test
+    image: secure-middleware-tests:latest
+    depends_on:
+      api:
+        condition: service_healthy
+      api-demo:
+        condition: service_healthy
+    environment:
+      E2E_BASE_URL: http://api-demo:8080
+      E2E_PROD_BASE_URL: http://api:8080
+      E2E_DEMO_TOKEN: ${DEMO_CONTROL_TOKEN:?set DEMO_CONTROL_TOKEN in .env (see .env.example)}
+      AUDIT_ENCRYPTION_KEY: ${AUDIT_ENCRYPTION_KEY:?set AUDIT_ENCRYPTION_KEY in .env (see .env.example)}
+      E2E_AUDIT_LOG_PATH: /audit/audit-log.json
+    volumes:
+      - audit-demo-data:/audit:ro
+
+volumes:
+  audit-data:
+  audit-demo-data:
