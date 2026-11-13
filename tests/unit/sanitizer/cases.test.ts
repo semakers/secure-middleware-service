@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { withLuhn } from './helpers.js';
+import { group, withLuhn } from './helpers.js';
 import { containsPii, PII_TYPES, redactionToken, sanitize } from '../../../src/sanitizer/index.js';
 
 const E = '<REDACTED: EMAIL>';
@@ -55,8 +55,9 @@ const cases: Case[] = [
   { name: 'mixed separators', input: '4111 1111-1111.1111', expected: C },
   { name: 'Luhn-invalid 16 digits untouched, and not an SSN', input: '4111 1111 1111 1112', expected: '4111 1111 1111 1112' },
   { name: 'Luhn-invalid contiguous 16 digits', input: '1234567812345678', expected: '1234567812345678' },
-  { name: '12 digits is too short for a card', input: '411111111111', expected: '411111111111' },
-  { name: '20 contiguous digits is not a card', input: '41111111111111111111', expected: '41111111111111111111' },
+  { name: '12 Luhn-valid digits is too short for a card', input: withLuhn('41111111111'), expected: withLuhn('41111111111') },
+  { name: '12 Luhn-valid digits, grouped', input: group(withLuhn('41111111111'), [4, 4, 4], ' '), expected: group(withLuhn('41111111111'), [4, 4, 4], ' ') },
+  { name: '20 Luhn-valid contiguous digits is not a card', input: withLuhn('4111111111111111111'), expected: withLuhn('4111111111111111111') },
   { name: 'double separator breaks the card', input: '4111  1111  1111  1111', expected: '4111  1111  1111  1111' },
   { name: 'card glued to letters is still redacted', input: 'id4111111111111111x', expected: `id${C}x` },
   { name: 'two cards', input: '4111111111111111, 5555555555554444', expected: `${C}, ${C}`, counts: { CREDIT_CARD: 2 } },

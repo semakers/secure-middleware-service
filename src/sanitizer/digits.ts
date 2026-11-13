@@ -5,7 +5,7 @@ const DASH = 2;
 const DOT = 3;
 
 const UNICODE_SPACE = /^\p{Zs}$/u;
-const UNICODE_DASH = /^[\p{Pd}−]$/u;
+const UNICODE_DASH = /^[\p{Pd}\u2212]$/u;
 const WORD_BEFORE = /[\p{L}\p{M}_]$/u;
 const WORD_AFTER = /^[\p{L}\p{M}_]/u;
 
