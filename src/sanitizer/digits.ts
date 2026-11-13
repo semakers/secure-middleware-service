@@ -36,23 +36,6 @@ interface Chain {
   seps: number[];
 }
 
-function luhnValid(text: string, chain: Chain, first: number, last: number): boolean {
-  let sum = 0;
-  let double = false;
-  for (let r = last; r >= first; r--) {
-    for (let p = (chain.ends[r] as number) - 1; p >= (chain.starts[r] as number); p--) {
-      let d = text.charCodeAt(p) - 48;
-      if (double) {
-        d *= 2;
-        if (d > 9) d -= 9;
-      }
-      sum += d;
-      double = !double;
-    }
-  }
-  return sum % 10 === 0;
-}
-
 function runLength(chain: Chain, r: number): number {
   return (chain.ends[r] as number) - (chain.starts[r] as number);
 }
@@ -70,14 +53,35 @@ function isSsnShape(chain: Chain, first: number, last: number): boolean {
   );
 }
 
-/** Index of the last run of the longest Luhn-valid 13-19 digit window starting at run `i`, or -1. */
+const DOUBLED = [0, 2, 4, 6, 8, 1, 3, 5, 7, 9];
+
+/**
+ * Index of the last run of the longest Luhn-valid 13-19 digit window starting at run `i`, or -1.
+ * The Luhn sum is kept incrementally for both parities (which digits are doubled depends on the
+ * final length, counted from the right), so a window costs O(digits), not O(digits^2).
+ */
 function bestCardEnd(text: string, chain: Chain, i: number): number {
   let total = 0;
+  let evenDoubled = 0; // sum when digits at even offsets from the left are doubled
+  let oddDoubled = 0; // sum when digits at odd offsets from the left are doubled
   let best = -1;
   for (let j = i; j < chain.starts.length; j++) {
-    total += runLength(chain, j);
-    if (total > MAX_CARD) break;
-    if (total >= MIN_CARD && luhnValid(text, chain, i, j)) best = j;
+    const len = runLength(chain, j);
+    if (total + len > MAX_CARD) break;
+    for (let p = chain.starts[j] as number; p < (chain.ends[j] as number); p++) {
+      const d = text.charCodeAt(p) - 48;
+      if (total % 2 === 0) {
+        evenDoubled += DOUBLED[d] as number;
+        oddDoubled += d;
+      } else {
+        evenDoubled += d;
+        oddDoubled += DOUBLED[d] as number;
+      }
+      total++;
+    }
+    // From the right the last digit is not doubled: with an even length the doubled ones sit at
+    // even offsets from the left, with an odd length at odd offsets.
+    if (total >= MIN_CARD && (total % 2 === 0 ? evenDoubled : oddDoubled) % 10 === 0) best = j;
   }
   return best;
 }
