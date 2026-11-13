@@ -2,7 +2,7 @@
 
 > This is the coordination contract the main agent wrote **before** launching the three worker
 > agents (sanitizer, core, api). It is kept verbatim as a record of the process; host paths refer to
-> the development machine. See PROMPT_LOG.md for how it was used.
+> the development machine; model names are replaced by roles. See PROMPT_LOG.md for how it was used.
 
 
 Main agent coordinates. Three worker agents run in parallel: **sanitizer**, **core**, **api**.
@@ -257,11 +257,11 @@ Spec (also the prompt the sanitizer is generated from — record it verbatim in 
 | `compose` | this repo's compose project, images, ports 4380/4381 | `docker compose build/up/down/run` (run on the HOST: `flock /srv/devenvs/@securemw/coordination/locks/compose.lock docker compose …`) |
 
 ```
-dx 'flock /coordination/locks/git.lock sh -c "git add -- src/ai tests/unit/ai && git commit -q -m \"feat(ai): circuit breaker\" -m \"Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>\" -- src/ai tests/unit/ai"'
+dx 'flock /coordination/locks/git.lock sh -c "git add -- src/ai tests/unit/ai && git commit -q -m \"feat(ai): circuit breaker\" -m \"Co-Authored-By: Claude [worker model] <noreply@anthropic.com>\" -- src/ai tests/unit/ai"'
 ```
 - Commit ONLY your own files with explicit paths. Never `git add -A` / `git add .` / `git commit -a`.
 - Conventional commits (`feat(sanitizer): …`, `test(api): …`); the message ends with a blank line +
-  `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`. The repo's author identity is already
+  `Co-Authored-By: Claude [worker model] <noreply@anthropic.com>`. The repo's author identity is already
   configured — don't change git config.
 - Never hold a lock while thinking: take, run, release. `vitest`/`tsc --noEmit`/`eslint` need no lock.
 - Never write secrets into the repo. Tests generate keys with `randomBytes(32)`; `.env` is git-ignored.

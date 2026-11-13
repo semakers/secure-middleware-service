@@ -201,7 +201,7 @@ query or headers of `/secure-inquiry` can select a failure (there's an integrati
 
 | Suite | What | Count |
 |---|---|---|
-| Unit (`tests/unit`) | sanitizer case table, properties, ReDoS timing; breaker transitions with an injected clock; mock AI and timeout with **fake timers**; crypto (tamper, wrong AAD/key, key parsing, no key in inspect); store (200 concurrent appends, group commit, failure + recovery, corrupt file); CLI; config; validation; logger; bootstrap and graceful shutdown | 347 |
+| Unit (`tests/unit`) | sanitizer case table, properties, ReDoS timing; breaker transitions with an injected clock; mock AI and timeout with **fake timers**; crypto (tamper, wrong AAD/key, key parsing, no key in inspect); store (200 concurrent appends, group commit, failure + recovery, corrupt file); CLI; config; validation; logger; bootstrap and graceful shutdown | 351 |
 | Integration (`tests/integration`, supertest) | happy path + audit decryption, validation and transport errors, the **circuit breaker over HTTP** (3 slow 502s → fast 503 with `Retry-After` and no AI call; half-open failing trial re-opens; healthy trial closes; hang → 504; success resets the counter), the demo control's auth and absence in production, 25 concurrent requests → 25 audit records, failing store → 500, no PII in captured logs, the real 2000 ms latency with fake timers | 50 |
 
 The integration suite runs **against two targets with the same files**
@@ -217,8 +217,8 @@ The integration suite runs **against two targets with the same files**
   Result: 44 passed, 6 skipped.
 
 Coverage (v8, `src/**` minus the 3-line `src/server.ts`) is enforced at **95 %** for lines,
-branches, functions and statements in `vitest.config.ts`. Current: 99.13 % statements,
-97.27 % branches, 98.17 % functions, 99.37 % lines. The sanitizer also has a **mutation check**
+branches, functions and statements in `vitest.config.ts`. Current: 99.04 % statements,
+96.95 % branches, 98.2 % functions, 99.38 % lines (401 tests). The sanitizer also has a **mutation check**
 (`node scripts/mutation-check.mjs`): 20 deliberate breakages, all killed.
 
 ## How the video was recorded
