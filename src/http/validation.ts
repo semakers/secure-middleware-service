@@ -4,7 +4,7 @@ import { containsPii } from '../sanitizer/index.js';
 
 export const USER_ID_MAX = 64;
 export const MESSAGE_MAX_CODE_POINTS = 5000;
-const USER_ID_FORMAT = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+const USER_ID_FORMAT = /^[a-z\d][\w-]*$/i;
 
 export interface InquiryInput {
   userId: string;

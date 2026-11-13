@@ -9,7 +9,7 @@ const valid = { userId: 'user_1', message: 'hello' };
 const issuesOf = (res: { body: { error: { details: { field: string; issue: string }[] } } }) =>
   res.body.error.details.map((d) => `${d.field}:${d.issue}`);
 
-async function expectError(res: { status: number; body: any; headers: Record<string, string> }, status: number, code: string) {
+async function expectError(res: { status: number; body: { error: { code: string; requestId: string } }; headers: Record<string, string> }, status: number, code: string) {
   expect(res.status).toBe(status);
   expect(res.body.error.code).toBe(code);
   expect(res.body.error.requestId).toBe(res.headers['x-request-id']);

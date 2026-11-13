@@ -70,7 +70,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): AppConfig {
   const port = read('PORT', intIn(0, 65535), 4380);
   const logLevel = read('LOG_LEVEL', z.enum(LOG_LEVELS), 'info');
   const maxBodyBytes = read('MAX_BODY_BYTES', intIn(1, 10_000_000), 32768);
-  const auditKeyId = read('AUDIT_KEY_ID', z.string().regex(/^[A-Za-z0-9_-]{1,32}$/), 'k1');
+  const auditKeyId = read('AUDIT_KEY_ID', z.string().regex(/^[\w-]{1,32}$/), 'k1');
   const auditLogPath = read('AUDIT_LOG_PATH', z.string().min(1).max(4096), 'data/audit-log.json');
   const aiMockLatencyMs = read('AI_MOCK_LATENCY_MS', intIn(0, 600_000), 2000);
   const aiMockMode = read('AI_MOCK_MODE', z.enum(['healthy', 'fail', 'hang']), 'healthy');

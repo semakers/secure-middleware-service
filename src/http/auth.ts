@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { sendError } from '../errors.js';
 
-const BEARER = /^Bearer ([^\s]+)$/i;
+const BEARER = /^Bearer (\S+)$/i;
 
 export function digestOf(value: string): Buffer {
   return createHash('sha256').update(value).digest();
