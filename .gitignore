@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+# Secrets: the real env file is never committed (see .env.example)
+.env
+.env.*
+!.env.example
+*.bak
+# Audit logs written by local runs (the mock database)
+data/
+*.tmp
+*.log
+.DS_Store

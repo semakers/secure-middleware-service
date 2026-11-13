@@ -1,0 +1,47 @@
+{
+  "name": "secure-middleware-service",
+  "version": "1.0.0",
+  "description": "Secure middleware: PII sanitizer, encrypted audit log and a circuit breaker in front of a mock AI call",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "vitest run --project integration",
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run typecheck && npm run lint && npm run test:coverage",
+    "audit:cli": "node dist/cli/audit.js"
+  },
+  "author": "Adrián <nairdafirmware@gmail.com>",
+  "license": "UNLICENSED",
+  "type": "module",
+  "dependencies": {
+    "express": "^5.3.0",
+    "helmet": "^8.3.0",
+    "pino": "^10.4.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.19.2",
+    "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^5.1.0",
+    "eslint": "^10.14.0",
+    "eslint-plugin-regexp": "^3.3.3",
+    "globals": "^17.14.0",
+    "supertest": "^7.3.2",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.2",
+    "vitest": "^5.1.0"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "private": true
+}
