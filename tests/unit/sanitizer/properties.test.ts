@@ -96,3 +96,23 @@ describe('properties on a corpus of tricky inputs', () => {
     }
   });
 });
+
+describe('card followed by an SSN (property: nothing of either leaks)', () => {
+  it('a random valid 16-digit card then a random SSN, every separator pairing', () => {
+    // Review finding: when card + the SSN's first group is ALSO Luhn-valid as 19 digits (about 1 in
+    // 10), a longest-window rule swallowed "123" and left "-45-6789" in clear.
+    const r = rng(2026);
+    const S = redactionToken('SSN');
+    for (let k = 0; k < 600; k++) {
+      const card = withLuhn(String(1 + Math.floor(r() * 9)) + randomDigits(r, 14));
+      const ssn = `${String(100 + Math.floor(r() * 900))}${randomDigits(r, 6)}`;
+      const cs = [' ', '-', '.', ''][k % 4] as string;
+      const ss = [' ', '-', '.', ''][Math.floor(k / 4) % 4] as string;
+      const ssnText = ss === '' ? ssn : `${ssn.slice(0, 3)}${ss}${ssn.slice(3, 5)}${ss}${ssn.slice(5)}`;
+      const text = `pay ${group(card, [4, 4, 4, 4], cs)} ${ssnText} ok`;
+      const out = sanitize(text);
+      expect(out.sanitized, text).toBe(`pay ${C} ${S} ok`);
+      expect(/\d/.test(out.sanitized), text).toBe(false);
+    }
+  });
+});

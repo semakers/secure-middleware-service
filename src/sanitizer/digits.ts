@@ -56,15 +56,15 @@ function isSsnShape(chain: Chain, first: number, last: number): boolean {
 const DOUBLED = [0, 2, 4, 6, 8, 1, 3, 5, 7, 9];
 
 /**
- * Index of the last run of the longest Luhn-valid 13-19 digit window starting at run `i`, or -1.
+ * Indexes of the last run of every Luhn-valid 13-19 digit window starting at run `i`, ascending.
  * The Luhn sum is kept incrementally for both parities (which digits are doubled depends on the
  * final length, counted from the right), so a window costs O(digits), not O(digits^2).
  */
-function bestCardEnd(text: string, chain: Chain, i: number): number {
+function cardEnds(text: string, chain: Chain, i: number): number[] {
   let total = 0;
   let evenDoubled = 0; // sum when digits at even offsets from the left are doubled
   let oddDoubled = 0; // sum when digits at odd offsets from the left are doubled
-  let best = -1;
+  const ends: number[] = [];
   for (let j = i; j < chain.starts.length; j++) {
     const len = runLength(chain, j);
     if (total + len > MAX_CARD) break;
@@ -81,9 +81,36 @@ function bestCardEnd(text: string, chain: Chain, i: number): number {
     }
     // From the right the last digit is not doubled: with an even length the doubled ones sit at
     // even offsets from the left, with an odd length at odd offsets.
-    if (total >= MIN_CARD && (total % 2 === 0 ? evenDoubled : oddDoubled) % 10 === 0) best = j;
+    if (total >= MIN_CARD && (total % 2 === 0 ? evenDoubled : oddDoubled) % 10 === 0) ends.push(j);
   }
-  return best;
+  return ends;
+}
+
+/** Last run of the longest Luhn-valid window starting at run `i`, or -1. */
+function bestCardEnd(text: string, chain: Chain, i: number): number {
+  const ends = cardEnds(text, chain, i);
+  return ends.length === 0 ? -1 : (ends[ends.length - 1] as number);
+}
+
+/** Last run of an SSN-shaped group (AAA-GG-SSSS or one 9-digit run) starting at run `k`, or -1. */
+function ssnShapeAt(chain: Chain, k: number): number {
+  if (k >= chain.starts.length) return -1;
+  if (k + 2 < chain.starts.length && isSsnShape(chain, k, k + 2)) return k + 2;
+  return runLength(chain, k) === 9 ? k : -1;
+}
+
+/**
+ * The longest card window, unless a shorter valid one is directly followed by an SSN-shaped group:
+ * "4111 1111 1111 1111 102-45-6789" is also Luhn-valid as 19 digits ("...1111102"), and taking that
+ * window would leave "-45-6789" (6 SSN digits) in clear. A card + an SSN can never both fit in one
+ * 19-digit window, so the longer window always cuts the SSN and the shorter card wins.
+ */
+function chooseCardEnd(chain: Chain, ends: readonly number[]): number {
+  for (let k = ends.length - 2; k >= 0; k--) {
+    const end = ends[k] as number;
+    if (ssnShapeAt(chain, end + 1) !== -1) return end;
+  }
+  return ends[ends.length - 1] as number;
 }
 
 /** Inside an alphanumeric token (`ab123456789`, `123456789x`) a 9-digit run is not an SSN. */
@@ -115,10 +142,11 @@ function processChain(text: string, chain: Chain, spans: Span[]): void {
       i = ssnLast + 1;
       continue;
     }
-    const best = bestCardEnd(text, chain, i);
-    if (best === -1) {
+    const ends = cardEnds(text, chain, i);
+    if (ends.length === 0) {
       i++;
     } else {
+      const best = chooseCardEnd(chain, ends);
       claim(i, best, 'CREDIT_CARD');
       i = best + 1;
     }

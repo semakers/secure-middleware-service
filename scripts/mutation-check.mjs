@@ -50,6 +50,11 @@ const mutants = [
     edits: [['src/sanitizer/digits.ts', '!joinedBefore && !joinedAfter && isSsnShape', 'isSsnShape']],
   },
   {
+    name: 'card-swallows-following-ssn',
+    why: 'longest Luhn window wins even when it cuts an SSN that follows a shorter valid card',
+    edits: [['src/sanitizer/digits.ts', 'if (ssnShapeAt(chain, end + 1) !== -1) return end;', 'if (false) return end;']],
+  },
+  {
     name: 'ssn-word-guard-removed',
     why: 'SSN inside an alphanumeric token is redacted',
     edits: [['src/sanitizer/digits.ts', 'return leftWord || rightWord;', 'return false;']],

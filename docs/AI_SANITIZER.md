@@ -70,7 +70,7 @@ The task brief given to the generating agent (condensed only by dropping list nu
 
 ## 2. How it was generated
 
-1. **Spec to case table.** The spec was turned into 85 table rows (91 after the review below) (`tests/unit/sanitizer/cases.test.ts`),
+1. **Spec to case table.** The spec was turned into 85 table rows (94 after the review below) (`tests/unit/sanitizer/cases.test.ts`),
    each with input, expected output and, where it matters, expected counts; plus ReDoS tests
    (`redos.test.ts`) and property tests with a Luhn generator and a seeded PRNG (`properties.test.ts`).
 2. **First implementation** (`email.ts`, `digits.ts`, `normalize.ts`, `index.ts`): a scanner design, not
@@ -98,6 +98,15 @@ The task brief given to the generating agent (condensed only by dropping list nu
      by the *same* separator (`123-45-6789-12`, `1 123 45 6789` stay untouched). Writing the new test also
      showed that `555-1234 123-45-6789` is a Luhn-valid 16-digit window, so it is (correctly, by the
      over-redaction rule) one CREDIT_CARD. Two mutants were added for the new rule; now 19/19.
+   - **Second review finding (a real leak, found while writing the "Glass Box" walkthrough):** step 1
+     took the *longest* Luhn-valid window. For a 16-digit card followed by an SSN, card + the SSN's first
+     group is a 19-digit number that is Luhn-valid about 1 time in 10 (`4111 1111 1111 1111 102-45-6789`:
+     `4111111111111111102` passes), so the card swallowed `102` and `-45-6789` (6 SSN digits) stayed in
+     clear. The spec's example used `123`, which happens not to collide, so the case table passed. Fix:
+     `chooseCardEnd` keeps a shorter valid card when an SSN-shaped group follows it (a card and an SSN
+     can never both fit in 19 digits, so the longer window always cuts the SSN). Added three cases, a
+     property test (600 random card + SSN pairs, every separator pairing, no digit may survive) and the
+     mutant `card-swallows-following-ssn`; now 20/20.
    - `eslint` segfaulted in the container (Fedora Node ICU bug in `Intl.Segmenter`, fixed by main by
      switching Node); not related to the sanitizer. A regex in the first draft of the mutation script
      tripped `regexp/no-super-linear-*` and `no-control-regex`; it now parses lines with `startsWith`.
@@ -167,6 +176,7 @@ normalised form is a fixed point and the token contains no digits or `@`.
 | `It is 123456789.` | `It is <SSN>.` | a sentence period is not a decimal |
 | `ab123456789`, `123456789x`, `_123456789` | untouched | digit run inside a token (IDs, hashes) |
 | `4111 1111 1111 1111 123-45-6789` | exactly one CARD + one SSN | the overlap example from the spec |
+| `4111 1111 1111 1111 102-45-6789` | exactly one CARD + one SSN | `...1111102` is Luhn-valid too: the longest window would cut the SSN (found in review) |
 | `123-45-6789 4111 1111 1111 1111` | SSN + CARD | mirror image; the first real bug found |
 | fullwidth digits with U+3000 spaces | CARD | NFKC |
 | ZWSP between card groups; ZWJ/BOM/soft hyphen inside an SSN; ZWSP/word joiner inside an e-mail | redacted | evasion by invisible characters |
@@ -239,13 +249,14 @@ baseline (unmutated copy): PASS
 
 mutant                                  result    first failing test
 luhn-always-true                        killed    × Luhn-invalid 16 digits untouched, and n… 4ms
-luhn-parity-flipped                     killed    × 13 digits, separator "" 5ms
+luhn-parity-flipped                     killed    × Visa contiguous 4ms
 email-plus-removed                      killed    × plus tag 3ms
 ssn-longer-number-guard-removed         killed    × Luhn-invalid contiguous 16 digits 4ms
-ssn-separator-change-ignored            killed    × SSN after a Luhn-invalid card, separato… 5ms
+ssn-separator-change-ignored            killed    × SSN after a Luhn-invalid card, separato… 4ms
 ssn-same-separator-guard-removed        killed    × longer separated sequence is not an SSN 4ms
+card-swallows-following-ssn             killed    × card + SSN where card+first SSN group i… 5ms
 ssn-word-guard-removed                  killed    × inside an alphanumeric token 5ms
-ssn-mixed-separators-accepted           killed    × mixed separators are not an SSN 5ms
+ssn-mixed-separators-accepted           killed    × mixed separators are not an SSN 4ms
 order-numbers-scanned-inside-emails     killed    × digits-only local part is one EMAIL, no… 4ms
 order-card-before-ssn-lost              killed    × SSN then card 4ms
 zero-width-strip-removed                killed    × zero-width space inside a card 4ms
@@ -256,9 +267,9 @@ separator-class-narrowed-unicode-space  killed    × Unicode dashes as separator
 card-max-length-unbounded               killed    × 20 Luhn-valid contiguous digits is not … 4ms
 card-min-length-lowered                 killed    × 12 Luhn-valid digits is too short for a… 4ms
 tld-min-length-lowered                  killed    × one-letter TLD is not an email 4ms
-email-merge-removed                     killed    × chained addresses merge into one 3ms
+email-merge-removed                     killed    × chained addresses merge into one 4ms
 
-19/19 mutants killed
+20/20 mutants killed
 ```
 
 ## 7. Known limitations / trade-offs
