@@ -40,6 +40,16 @@ const mutants = [
     edits: [['src/sanitizer/digits.ts', 'if (count === 1) return runLength(chain, first) === 9;', 'if (count === 1) return runLength(chain, first) >= 9;']],
   },
   {
+    name: 'ssn-separator-change-ignored',
+    why: 'an SSN after another number joined by a different separator would leak',
+    edits: [['src/sanitizer/digits.ts', 'claimSeparatedSsns(text, chain, i, j, claim);', 'void claimSeparatedSsns;']],
+  },
+  {
+    name: 'ssn-same-separator-guard-removed',
+    why: 'a window inside a longer same-separator number would be redacted as SSN',
+    edits: [['src/sanitizer/digits.ts', '!joinedBefore && !joinedAfter && isSsnShape', 'isSsnShape']],
+  },
+  {
     name: 'ssn-word-guard-removed',
     why: 'SSN inside an alphanumeric token is redacted',
     edits: [['src/sanitizer/digits.ts', 'return leftWord || rightWord;', 'return false;']],

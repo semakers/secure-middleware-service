@@ -70,7 +70,7 @@ The task brief given to the generating agent (condensed only by dropping list nu
 
 ## 2. How it was generated
 
-1. **Spec to case table.** The spec was turned into 85 table rows (`tests/unit/sanitizer/cases.test.ts`),
+1. **Spec to case table.** The spec was turned into 85 table rows (91 after the review below) (`tests/unit/sanitizer/cases.test.ts`),
    each with input, expected output and, where it matters, expected counts; plus ReDoS tests
    (`redos.test.ts`) and property tests with a Luhn generator and a seeded PRNG (`properties.test.ts`).
 2. **First implementation** (`email.ts`, `digits.ts`, `normalize.ts`, `index.ts`): a scanner design, not
@@ -91,6 +91,13 @@ The task brief given to the generating agent (condensed only by dropping list nu
    - The first mutation run killed 15/17 mutants. The two survivors (`MAX_CARD` unbounded, `MIN_CARD`
      lowered) showed that my "20 digits / 12 digits" tests used numbers that were not Luhn-valid, so they
      passed for the wrong reason. Tests were rewritten with Luhn-valid 12- and 20-digit numbers; now 17/17.
+   - **Review by the main agent** (after "done"): section 7 listed `4111-1111-1111-1112 123-45-6789` as a
+     deliberate under-redaction: the SSN leaked because the whole 25-digit sequence counted as one "longer
+     number". Main rejected that trade-off (a leak is worse than a false positive) and changed step 2: a
+     change of separator ends a number, so an `AAA-GG-SSSS` window is an SSN unless a neighbour is joined
+     by the *same* separator (`123-45-6789-12`, `1 123 45 6789` stay untouched). Writing the new test also
+     showed that `555-1234 123-45-6789` is a Luhn-valid 16-digit window, so it is (correctly, by the
+     over-redaction rule) one CREDIT_CARD. Two mutants were added for the new rule; now 19/19.
    - `eslint` segfaulted in the container (Fedora Node ICU bug in `Intl.Segmenter`, fixed by main by
      switching Node); not related to the sanitizer. A regex in the first draft of the mutation script
      tripped `regexp/no-super-linear-*` and `no-control-regex`; it now parses lines with `startsWith`.
@@ -154,7 +161,9 @@ normalised form is a fixed point and the token contains no digits or `@`.
 | `123-45-6789`, `123 45 6789`, `123.45.6789`, `123456789` | SSN | formats |
 | `123-45 6789` | untouched | consistent separator required (spec) |
 | `1234567890`, `12345678` | untouched | not exactly 9 |
-| `123456789.5`, `123-45-6789-12` | untouched | "part of a longer number" |
+| `123456789.5`, `123-45-6789-12`, `1 123 45 6789` | untouched | "part of a longer number" (same separator) |
+| `4111-1111-1111-1112 123-45-6789` | 16 digits kept, SSN redacted | a separator change ends a number: an SSN must not hide behind a failed card (found in review) |
+| `Call 555-1234 123-45-6789` | one CARD | the 16 digits happen to be Luhn-valid: over-redaction by design |
 | `It is 123456789.` | `It is <SSN>.` | a sentence period is not a decimal |
 | `ab123456789`, `123456789x`, `_123456789` | untouched | digit run inside a token (IDs, hashes) |
 | `4111 1111 1111 1111 123-45-6789` | exactly one CARD + one SSN | the overlap example from the spec |
@@ -231,14 +240,16 @@ baseline (unmutated copy): PASS
 mutant                                  result    first failing test
 luhn-always-true                        killed    × Luhn-invalid 16 digits untouched, and n… 4ms
 luhn-parity-flipped                     killed    × 13 digits, separator "" 5ms
-email-plus-removed                      killed    × plus tag 4ms
+email-plus-removed                      killed    × plus tag 3ms
 ssn-longer-number-guard-removed         killed    × Luhn-invalid contiguous 16 digits 4ms
-ssn-word-guard-removed                  killed    × inside an alphanumeric token 6ms
-ssn-mixed-separators-accepted           killed    × mixed separators are not an SSN 4ms
+ssn-separator-change-ignored            killed    × SSN after a Luhn-invalid card, separato… 5ms
+ssn-same-separator-guard-removed        killed    × longer separated sequence is not an SSN 4ms
+ssn-word-guard-removed                  killed    × inside an alphanumeric token 5ms
+ssn-mixed-separators-accepted           killed    × mixed separators are not an SSN 5ms
 order-numbers-scanned-inside-emails     killed    × digits-only local part is one EMAIL, no… 4ms
 order-card-before-ssn-lost              killed    × SSN then card 4ms
 zero-width-strip-removed                killed    × zero-width space inside a card 4ms
-mark-strip-after-digit-removed          killed    × combining marks after digits 5ms
+mark-strip-after-digit-removed          killed    × combining marks after digits 4ms
 nfkc-removed                            killed    × fullwidth @ and dot 4ms
 separator-class-narrowed-dash           killed    × 13 digits, separator "-" 3ms
 separator-class-narrowed-unicode-space  killed    × Unicode dashes as separators 4ms
@@ -247,7 +258,7 @@ card-min-length-lowered                 killed    × 12 Luhn-valid digits is too
 tld-min-length-lowered                  killed    × one-letter TLD is not an email 4ms
 email-merge-removed                     killed    × chained addresses merge into one 3ms
 
-17/17 mutants killed
+19/19 mutants killed
 ```
 
 ## 7. Known limitations / trade-offs
@@ -259,9 +270,9 @@ email-merge-removed                     killed    × chained addresses merge int
   `see:-a@b.com` redacts the leading `-`; `a@b.com.c@d.com` is one match.
 - **Deliberate under-redaction** (the spec's "not part of a longer number"): a 9-digit group inside a
   longer separated sequence (`123-45-6789-12`), inside a 10+ digit run, next to a letter or underscore, or
-  followed by `.5`. An SSN inside a longer group sequence next to a Luhn-invalid card-length run
-  (`4111-1111-1111-1112 123-45-6789`, 25 digits) is not redacted. 3-2-4 groups with mixed separators are
-  not SSNs.
+  followed by `.5`, or joined to a neighbouring group by the *same* separator (`1 123 45 6789`). A
+  separator change ends a number, so `4111-1111-1111-1112 123-45-6789` redacts the SSN (and leaves the
+  Luhn-invalid 16 digits). 3-2-4 groups with mixed separators are not SSNs.
 - Non-ASCII digits are mapped by block position (assumes `Nd` blocks are runs of ten). Cards or SSNs
   written in words, or with letters in place of digits, are not detected.
 - Separators are exactly one of space, `.`, `-`, a Unicode space or dash. Tabs, newlines, `/`, `_`, `,`

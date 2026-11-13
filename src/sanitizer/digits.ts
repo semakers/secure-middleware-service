@@ -124,7 +124,8 @@ function processChain(text: string, chain: Chain, spans: Span[]): void {
     }
   }
 
-  // 2. SSN: every maximal group of unclaimed runs must be, as a whole, exactly 9 digits.
+  // 2. SSN: a maximal group of unclaimed runs that is, as a whole, exactly 9 digits; or, inside a
+  //    longer group, an AAA-GG-SSSS window whose neighbours are joined by a DIFFERENT separator.
   for (let i = 0; i < runs; ) {
     if (claimed[i] === true) {
       i++;
@@ -132,8 +133,37 @@ function processChain(text: string, chain: Chain, spans: Span[]): void {
     }
     let j = i;
     while (j + 1 < runs && claimed[j + 1] !== true) j++;
-    if (isSsnShape(chain, i, j) && !ssnInsideWord(text, chain, i, j)) claim(i, j, 'SSN');
+    if (isSsnShape(chain, i, j)) {
+      if (!ssnInsideWord(text, chain, i, j)) claim(i, j, 'SSN');
+    } else {
+      claimSeparatedSsns(text, chain, i, j, claim);
+    }
     i = j + 1;
+  }
+}
+
+/**
+ * A change of separator ends a number: in "4111-1111-1111-1112 123-45-6789" the space separates a
+ * (Luhn-invalid) 16-digit number from a dashed SSN, which must not leak. A neighbour joined by the
+ * SAME separator keeps the window part of a longer number ("123-45-6789-12", "1 123 45 6789").
+ */
+function claimSeparatedSsns(
+  text: string,
+  chain: Chain,
+  first: number,
+  last: number,
+  claim: (first: number, last: number, type: Span['type']) => void,
+): void {
+  for (let k = first; k + 2 <= last; ) {
+    const sep = chain.seps[k];
+    const joinedBefore = k > first && chain.seps[k - 1] === sep;
+    const joinedAfter = k + 2 < last && chain.seps[k + 2] === sep;
+    if (!joinedBefore && !joinedAfter && isSsnShape(chain, k, k + 2) && !ssnInsideWord(text, chain, k, k + 2)) {
+      claim(k, k + 2, 'SSN');
+      k += 3;
+    } else {
+      k++;
+    }
   }
 }
 
