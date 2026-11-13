@@ -20,7 +20,9 @@ export function sanitizeValue(value: unknown, depth = 0): unknown {
       .join('\n');
     return { name: value.name, stack: sanitize(frames).sanitized };
   }
-  if (depth >= MAX_DEPTH || typeof value !== 'object' || value === null) return value;
+  if (typeof value !== 'object' || value === null) return value;
+  // Past the limit nothing is passed through raw: a deep string could hold PII.
+  if (depth >= MAX_DEPTH) return '[Truncated]';
   if (Array.isArray(value)) return value.map((v) => sanitizeValue(v, depth + 1));
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value)) out[sanitize(k).sanitized] = sanitizeValue(v, depth + 1);
@@ -35,6 +37,8 @@ export function createLogger({ level, destination }: CreateLoggerOptions): Logge
     formatters: {
       level: (label) => ({ level: label }),
       log: (obj) => sanitizeValue(obj) as Record<string, unknown>,
+      // Child-logger bindings bypass formatters.log, so sanitise them too.
+      bindings: (bindings) => sanitizeValue(bindings) as Record<string, unknown>,
     },
     hooks: {
       logMethod(args, method) {
@@ -44,5 +48,9 @@ export function createLogger({ level, destination }: CreateLoggerOptions): Logge
       },
     },
   };
-  return destination === undefined ? pino(options) : pino(options, destination);
+  const logger = destination === undefined ? pino(options) : pino(options, destination);
+  // pino does not run formatters.log/bindings over child bindings: sanitise them here.
+  const child = logger.child.bind(logger);
+  logger.child = ((bindings, childOptions) => child(sanitizeValue(bindings) as typeof bindings, childOptions)) as typeof logger.child;
+  return logger;
 }

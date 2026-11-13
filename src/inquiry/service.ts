@@ -67,7 +67,7 @@ export class InquiryService {
     const { sanitized, redactions } = sanitize(req.message);
     observe.redactions = redactions;
 
-    let answer: string | undefined;
+    let answer = '';
     let outcome: AuditOutcome = 'answered';
     let failure: AppError | undefined;
     try {
@@ -95,7 +95,7 @@ export class InquiryService {
       throw new AppError('AUDIT_WRITE_FAILED');
     }
 
-    if (failure !== undefined || answer === undefined) throw failure ?? new AppError('INTERNAL_ERROR');
+    if (failure !== undefined) throw failure;
     return { requestId: req.requestId, auditId: record.id, answer, sanitizedMessage: sanitized, redactions };
   }
 }
