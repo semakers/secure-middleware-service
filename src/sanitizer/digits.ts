@@ -130,9 +130,10 @@ function processChain(text: string, chain: Chain, spans: Span[]): void {
     for (let r = first; r <= last; r++) claimed[r] = true;
   };
 
-  // 1. Cards first (leftmost start, longest Luhn-valid window of 13-19 digits). One exception:
-  //    an SSN-shaped group that is immediately followed by a valid card is an SSN, not the
-  //    first digits of a card ("123-45-6789 4111 1111 1111 1111").
+  // 1. Cards first (leftmost start, longest Luhn-valid window of 13-19 digits that does not cut a
+  //    following SSN, see chooseCardEnd). One exception: an SSN-shaped group that is immediately
+  //    followed by a valid card is an SSN, not the first digits of a card
+  //    ("123-45-6789 4111 1111 1111 1111").
   for (let i = 0; i < runs; ) {
     let ssnLast = -1;
     if (isSsnShape(chain, i, i + 2)) ssnLast = i + 2;
