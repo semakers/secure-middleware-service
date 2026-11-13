@@ -49,7 +49,7 @@ services:
       AUDIT_ENCRYPTION_KEY: ${AUDIT_ENCRYPTION_KEY:?set AUDIT_ENCRYPTION_KEY in .env (see .env.example)}
       AUDIT_KEY_ID: ${AUDIT_KEY_ID:-k1}
       DEMO_CONTROL_ENABLED: "true"
-      DEMO_CONTROL_TOKEN: ${DEMO_CONTROL_TOKEN:?set DEMO_CONTROL_TOKEN in .env (see .env.example)}
+      DEMO_CONTROL_TOKEN: ${DEMO_CONTROL_TOKEN:-}
       CIRCUIT_COOLDOWN_MS: ${DEMO_COOLDOWN_MS:-10000}
       AI_MOCK_LATENCY_MS: ${AI_MOCK_LATENCY_MS:-2000}
       AI_TIMEOUT_MS: ${AI_TIMEOUT_MS:-5000}
@@ -75,7 +75,7 @@ services:
     environment:
       E2E_BASE_URL: http://api-demo:8080
       E2E_PROD_BASE_URL: http://api:8080
-      E2E_DEMO_TOKEN: ${DEMO_CONTROL_TOKEN:?set DEMO_CONTROL_TOKEN in .env (see .env.example)}
+      E2E_DEMO_TOKEN: ${DEMO_CONTROL_TOKEN:-}
       AUDIT_ENCRYPTION_KEY: ${AUDIT_ENCRYPTION_KEY:?set AUDIT_ENCRYPTION_KEY in .env (see .env.example)}
       E2E_AUDIT_LOG_PATH: /audit/audit-log.json
     volumes:
