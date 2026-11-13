@@ -244,7 +244,7 @@ describe('JsonFileAuditStore.append', () => {
     expect(all[0]?.id).toBe(id);
     expect(all).not.toBe(await store.readAll());
     (all[0] as AuditRecord).id = 'mutated';
-    all[0]?.redactions && (all[0].redactions.EMAIL = 99);
+    (all[0] as AuditRecord).redactions.EMAIL = 99;
     const again = await store.readAll();
     expect(again[0]?.id).toBe(id);
     expect(again[0]?.redactions.EMAIL).toBe(0);

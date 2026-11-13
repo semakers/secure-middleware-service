@@ -27,11 +27,18 @@ export class InvalidKeyError extends Error {
 const KEY_BYTES = 32;
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
-const HEX_KEY = /^[0-9a-fA-F]{64}$/;
-const BASE64_KEY = /^[A-Za-z0-9+/]{43}=?$/;
-const BASE64URL_KEY = /^[A-Za-z0-9_-]{43}=?$/;
+const HEX_KEY = /^[0-9a-f]{64}$/i;
+const BASE64_KEY = /^[a-z0-9+/]{43}=?$/i;
+const BASE64URL_KEY = /^[\w-]{43}=?$/;
 
 const BAD_KEY = 'AUDIT_ENCRYPTION_KEY must be 32 random bytes encoded as base64, base64url or 64 hex characters';
+
+/** Drops trailing '=' padding without a regex (a `/=+$/` scan is quadratic on adversarial input). */
+function stripPadding(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 0x3d) end--;
+  return value.slice(0, end);
+}
 
 function decodeKey(value: string): Buffer | undefined {
   if (HEX_KEY.test(value)) return Buffer.from(value, 'hex');
@@ -39,8 +46,8 @@ function decodeKey(value: string): Buffer | undefined {
   if (encoding === undefined) return undefined;
   const buf = Buffer.from(value, encoding);
   // Reject non-canonical encodings (non-zero trailing bits) so one key has one spelling.
-  const canonical = buf.toString(encoding).replace(/=+$/, '');
-  return buf.length === KEY_BYTES && canonical === value.replace(/=+$/, '') ? buf : undefined;
+  const canonical = stripPadding(buf.toString(encoding));
+  return buf.length === KEY_BYTES && canonical === stripPadding(value) ? buf : undefined;
 }
 
 /** Decodes AUDIT_ENCRYPTION_KEY: base64/base64url of 32 bytes, or 64 hex chars. */
